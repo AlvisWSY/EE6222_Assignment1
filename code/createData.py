@@ -9,7 +9,7 @@ df_wine = pd.DataFrame(wine.data, columns=wine.feature_names)
 df_wine['label'] = wine.target
 
 # 将 DataFrame 保存为 CSV 文件，路径为 ./data/wine_data.csv
-csv_path = './data/wine_data.csv'
+csv_path = '../data/wine_data.csv'
 df_wine.to_csv(csv_path, index=False)
 
 print(f"Wine 数据集已保存为 CSV 文件：{csv_path}")
