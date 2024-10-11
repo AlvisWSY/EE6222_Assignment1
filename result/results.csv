@@ -1,42 +1,64 @@
 Dataset,Reduction Method,Parameters,Explained Variance,Number of Components,Classifier,Accuracy,Reduction Time per Sample,Classification Time per Sample
-mnist,pca,50,0.9995298,50,knn,0.9833333333333333,0.000135s per sample,0.000593s per sample
-mnist,pca,0.95,0.9500601,28,knn,0.9777777777777777,0.000002s per sample,0.000254s per sample
-mnist,pca,50,0.9995297,50,linear,0.9583333333333334,0.000185s per sample,0.000346s per sample
-mnist,pca,0.95,0.9500601,28,linear,0.9611111111111111,0.000002s per sample,0.000213s per sample
-mnist,pca,50,0.9995301,50,mahalanobis,0.95,0.000083s per sample,0.001350s per sample
+mnist,pca,50,0.99952984,50,knn,0.9833333333333333,0.000097s per sample,0.000585s per sample
+mnist,pca,0.95,0.9500601,28,knn,0.9777777777777777,0.000002s per sample,0.000269s per sample
+mnist,pca,50,0.99952966,50,linear,0.9583333333333334,0.000154s per sample,0.000368s per sample
+mnist,pca,0.95,0.9500601,28,linear,0.9611111111111111,0.000003s per sample,0.000244s per sample
+mnist,pca,50,0.9995298,50,mahalanobis,0.95,0.000068s per sample,0.001255s per sample
 mnist,pca,0.95,0.9500601,28,mahalanobis,0.9722222222222222,0.000002s per sample,0.000454s per sample
 mnist,lda,50,N/A,9,knn,0.9722222222222222,0.000006s per sample,0.000047s per sample
 mnist,lda,0.95,N/A,9,knn,0.9722222222222222,0.000010s per sample,0.000046s per sample
-mnist,lda,50,N/A,9,linear,0.95,0.000010s per sample,0.000109s per sample
-mnist,lda,0.95,N/A,9,linear,0.95,0.000012s per sample,0.000109s per sample
-mnist,lda,50,N/A,9,mahalanobis,0.9694444444444444,0.000011s per sample,0.000123s per sample
-mnist,lda,0.95,N/A,9,mahalanobis,0.9694444444444444,0.000011s per sample,0.000122s per sample
-mnist,pca+lda,50,0.99952966,9,knn,0.9722222222222222,0.000164s per sample,0.000078s per sample
-mnist,pca+lda,0.95,0.9500601,9,knn,0.9555555555555556,0.000016s per sample,0.000046s per sample
-mnist,pca+lda,50,0.99952996,9,linear,0.9583333333333334,0.000063s per sample,0.000166s per sample
-mnist,pca+lda,0.95,0.9500601,9,linear,0.9388888888888889,0.000007s per sample,0.000110s per sample
-mnist,pca+lda,50,0.99952966,9,mahalanobis,0.975,0.000070s per sample,0.000176s per sample
-mnist,pca+lda,0.95,0.9500601,9,mahalanobis,0.9555555555555556,0.000007s per sample,0.000121s per sample
-wine,pca,3,0.6600181085987928,3,knn,1.0,0.000005s per sample,0.000091s per sample
-wine,pca,0.95,0.9624270003403538,10,knn,0.9444444444444444,0.000005s per sample,0.000082s per sample
-wine,pca,3,0.6600181085987928,3,linear,0.9722222222222222,0.000004s per sample,0.000083s per sample
-wine,pca,0.95,0.9624270003403538,10,linear,1.0,0.000005s per sample,0.000073s per sample
-wine,pca,3,0.6600181085987928,3,mahalanobis,0.9444444444444444,0.000004s per sample,0.000032s per sample
-wine,pca,0.95,0.9624270003403538,10,mahalanobis,0.9166666666666666,0.000005s per sample,0.000037s per sample
-wine,lda,3,N/A,2,knn,1.0,0.000011s per sample,0.000089s per sample
-wine,lda,0.95,N/A,2,knn,1.0,0.000010s per sample,0.000076s per sample
-wine,lda,3,N/A,2,linear,1.0,0.000011s per sample,0.000232s per sample
-wine,lda,0.95,N/A,2,linear,1.0,0.000006s per sample,0.000041s per sample
-wine,lda,3,N/A,2,mahalanobis,1.0,0.000006s per sample,0.000017s per sample
-wine,lda,0.95,N/A,2,mahalanobis,1.0,0.000006s per sample,0.000016s per sample
-wine,pca+lda,3,0.6600181085987928,2,knn,1.0,0.000008s per sample,0.000048s per sample
-wine,pca+lda,0.95,0.9624270003403538,2,knn,1.0,0.000009s per sample,0.000048s per sample
-wine,pca+lda,3,0.6600181085987928,2,linear,0.9722222222222222,0.000008s per sample,0.000045s per sample
-wine,pca+lda,0.95,0.9624270003403538,2,linear,1.0,0.000009s per sample,0.000051s per sample
-wine,pca+lda,3,0.6600181085987928,2,mahalanobis,1.0,0.000008s per sample,0.000018s per sample
-wine,pca+lda,0.95,0.9624270003403538,2,mahalanobis,1.0,0.000010s per sample,0.000016s per sample
-cifar10,pca,100,0.90116185,100,knn,0.36683333333333334,0.000095s per sample,0.000032s per sample
-cifar10,pca,0.95,0.9500688,216,knn,0.34991666666666665,0.000191s per sample,0.000040s per sample
-cifar10,pca,100,0.9011761,100,linear,0.39675,0.000088s per sample,0.001483s per sample
-cifar10,pca,0.95,0.9500688,216,linear,0.4078333333333333,0.000200s per sample,0.003398s per sample
-cifar10,pca,100,0.9011718,100,mahalanobis,0.33216666666666667,0.000085s per sample,0.151659s per sample
+mnist,lda,50,N/A,9,linear,0.95,0.000010s per sample,0.000103s per sample
+mnist,lda,0.95,N/A,9,linear,0.95,0.000010s per sample,0.000112s per sample
+mnist,lda,50,N/A,9,mahalanobis,0.9694444444444444,0.000011s per sample,0.000206s per sample
+mnist,lda,0.95,N/A,9,mahalanobis,0.9694444444444444,0.000010s per sample,0.000118s per sample
+mnist,pca+lda,50,0.9995298,9,knn,0.9722222222222222,0.000076s per sample,0.000111s per sample
+mnist,pca+lda,0.95,0.9500601,9,knn,0.9555555555555556,0.000007s per sample,0.000045s per sample
+mnist,pca+lda,50,0.99953014,9,linear,0.9583333333333334,0.000067s per sample,0.000187s per sample
+mnist,pca+lda,0.95,0.9500601,9,linear,0.9388888888888889,0.000013s per sample,0.000130s per sample
+mnist,pca+lda,50,0.99952966,9,mahalanobis,0.975,0.000046s per sample,0.000231s per sample
+mnist,pca+lda,0.95,0.9500601,9,mahalanobis,0.9555555555555556,0.000008s per sample,0.000119s per sample
+wine,pca,3,0.6600181085987928,3,knn,1.0,0.000005s per sample,0.000081s per sample
+wine,pca,0.95,0.9624270003403538,10,knn,0.9444444444444444,0.000005s per sample,0.000081s per sample
+wine,pca,3,0.6600181085987928,3,linear,0.9722222222222222,0.000004s per sample,0.000064s per sample
+wine,pca,0.95,0.9624270003403538,10,linear,1.0,0.000005s per sample,0.000235s per sample
+wine,pca,3,0.6600181085987928,3,mahalanobis,0.9444444444444444,0.000004s per sample,0.000027s per sample
+wine,pca,0.95,0.9624270003403538,10,mahalanobis,0.9166666666666666,0.000005s per sample,0.000038s per sample
+wine,lda,3,N/A,2,knn,1.0,0.000012s per sample,0.000074s per sample
+wine,lda,0.95,N/A,2,knn,1.0,0.000011s per sample,0.000074s per sample
+wine,lda,3,N/A,2,linear,1.0,0.000011s per sample,0.000062s per sample
+wine,lda,0.95,N/A,2,linear,1.0,0.000010s per sample,0.000043s per sample
+wine,lda,3,N/A,2,mahalanobis,1.0,0.000006s per sample,0.000016s per sample
+wine,lda,0.95,N/A,2,mahalanobis,1.0,0.000007s per sample,0.000018s per sample
+wine,pca+lda,3,0.6600181085987928,2,knn,1.0,0.000008s per sample,0.000046s per sample
+wine,pca+lda,0.95,0.9624270003403538,2,knn,1.0,0.000011s per sample,0.000061s per sample
+wine,pca+lda,3,0.6600181085987928,2,linear,0.9722222222222222,0.000009s per sample,0.000044s per sample
+wine,pca+lda,0.95,0.9624270003403538,2,linear,1.0,0.000009s per sample,0.000052s per sample
+wine,pca+lda,3,0.6600181085987928,2,mahalanobis,1.0,0.000008s per sample,0.000017s per sample
+wine,pca+lda,0.95,0.9624270003403538,2,mahalanobis,1.0,0.000013s per sample,0.000023s per sample
+cifar10,pca,100,0.901162,100,knn,0.36741666666666667,0.000096s per sample,0.000039s per sample
+cifar10,pca,0.95,0.9500688,216,knn,0.34991666666666665,0.000210s per sample,0.000055s per sample
+cifar10,pca,100,0.90117526,100,linear,0.39566666666666667,0.000085s per sample,0.001502s per sample
+cifar10,pca,0.95,0.9500688,216,linear,0.4078333333333333,0.000233s per sample,0.003376s per sample
+cifar10,pca,100,0.90116763,100,mahalanobis,0.33058333333333334,0.000092s per sample,0.151361s per sample
+cifar10,pca,0.95,0.9500688,216,mahalanobis,0.25833333333333336,0.000229s per sample,0.838616s per sample
+cifar10,lda,100,N/A,9,knn,0.3040833333333333,0.000372s per sample,0.000148s per sample
+cifar10,lda,0.95,N/A,9,knn,0.3040833333333333,0.000358s per sample,0.000147s per sample
+cifar10,lda,100,N/A,9,linear,0.3605,0.000356s per sample,0.000058s per sample
+cifar10,lda,0.95,N/A,9,linear,0.3605,0.000351s per sample,0.000057s per sample
+cifar10,lda,100,N/A,9,mahalanobis,0.2771666666666667,0.000357s per sample,0.002056s per sample
+cifar10,lda,0.95,N/A,9,mahalanobis,0.2771666666666667,0.000359s per sample,0.002089s per sample
+cifar10,pca+lda,100,0.90115964,9,knn,0.3421666666666667,0.000100s per sample,0.000134s per sample
+cifar10,pca+lda,0.95,0.9500688,9,knn,0.3486666666666667,0.000210s per sample,0.000140s per sample
+cifar10,pca+lda,100,0.90117705,9,linear,0.3914166666666667,0.000091s per sample,0.000056s per sample
+cifar10,pca+lda,0.95,0.9500688,9,linear,0.40641666666666665,0.000181s per sample,0.000055s per sample
+cifar10,pca+lda,100,0.9011635,9,mahalanobis,0.32966666666666666,0.000088s per sample,0.002069s per sample
+cifar10,pca+lda,0.95,0.9500688,9,mahalanobis,0.32508333333333334,0.000184s per sample,0.001991s per sample
+mnist,none,N/A,N/A,64,knn,0.9833333333333333,N/A,0.000035s per sample
+mnist,none,N/A,N/A,64,linear,0.9638888888888889,N/A,0.000243s per sample
+mnist,none,N/A,N/A,64,mahalanobis,0.9333333333333333,N/A,0.002009s per sample
+wine,none,N/A,N/A,13,knn,0.9444444444444444,N/A,0.000059s per sample
+wine,none,N/A,N/A,13,linear,1.0,N/A,0.000114s per sample
+wine,none,N/A,N/A,13,mahalanobis,0.9444444444444444,N/A,0.000028s per sample
+cifar10,none,N/A,N/A,3072,knn,0.3308333333333333,N/A,0.000532s per sample
+cifar10,none,N/A,N/A,3072,linear,N/A,N/A,N/A
+cifar10,none,N/A,N/A,3072,mahalanobis,N/A,N/A,N/A
