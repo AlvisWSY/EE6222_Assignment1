@@ -1,222 +1,212 @@
+import csv
+import time
+import warnings
+from sklearn.decomposition import PCA
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from scipy.spatial.distance import cdist
+import numpy as np
+from sklearn import datasets
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 import torch
 import torchvision
 import torchvision.transforms as transforms
-import numpy as np
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.datasets import load_wine
-from sklearn.metrics import f1_score, classification_report
-from imblearn.over_sampling import SMOTE
-import matplotlib.pyplot as plt
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.covariance import EmpiricalCovariance
-from cuml import PCA
-from cuml import LDA
-import time
-import tracemalloc
+from sklearn.exceptions import ConvergenceWarning
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
+import os
 
-# 参数字典
-default_params = {
-    'pca_n_components': {
-        'wine': [3, 0.95],
-        'mnist': [50, 0.95],
-        'cifar100': [100, 0.95]
-    },
-    'lda_n_components': None,
-    'oversample': True
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
+
+# Cache for loaded datasets
+_cached_data = {}
+
+# Function to load and preprocess data
+def load_and_preprocess_data(dataset_name):
+    if dataset_name in _cached_data:
+        return _cached_data[dataset_name]
+
+    if dataset_name == 'mnist':
+        from sklearn.datasets import load_digits
+        digits = load_digits()
+        X, y = digits.data, digits.target
+        X = X.astype('float32') / 16.0  # Normalize to [0, 1] range
+    elif dataset_name == 'wine':
+        wine = datasets.load_wine()
+        X, y = wine.data, wine.target
+        scaler = StandardScaler()
+        X = scaler.fit_transform(X)
+    elif dataset_name == 'cifar10':
+        transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        trainset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=transform)
+        testset = torchvision.datasets.CIFAR10(root='../data', train=False, download=True, transform=transform)
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=len(trainset), shuffle=False)
+        testloader = torch.utils.data.DataLoader(testset, batch_size=len(testset), shuffle=False)
+        train_data = next(iter(trainloader))
+        test_data = next(iter(testloader))
+        X_train, y_train = train_data[0].view(len(trainset), -1).numpy(), train_data[1].numpy()
+        X_test, y_test = test_data[0].view(len(testset), -1).numpy(), test_data[1].numpy()
+        X = np.concatenate((X_train, X_test), axis=0)
+        y = np.concatenate((y_train, y_test), axis=0)
+        X = X.astype('float32') / 2.0 + 0.5  # Normalize to [0, 1] range
+    else:
+        raise ValueError("Unsupported dataset. Choose from 'mnist', 'wine', 'cifar10'.")
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    _cached_data[dataset_name] = (X_train, X_test, y_train, y_test)
+    return X_train, X_test, y_train, y_test
+
+# Function to classify data
+def classify_data(classifier_name, X_train, y_train, X_test, y_test, time_limit=300):
+    start_time = time.time()
+    
+    if classifier_name == 'knn':
+        classifier = KNeighborsClassifier(n_neighbors=3)
+        try:
+            classifier.fit(X_train, y_train)
+            y_pred = classifier.predict(X_test)
+        except Exception as e:
+            print(f"Training error: {e}")
+            return 'NA', 'NA'
+
+    elif classifier_name == 'linear':
+        classifier = LogisticRegression(max_iter=1000, solver='liblinear')
+        try:
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(classifier.fit, X_train, y_train)
+                future.result(timeout=60)  # Set a timeout of 60 seconds
+            y_pred = classifier.predict(X_test)
+        except TimeoutError:
+            print("Training timed out")
+            return 'NA', 'NA'
+        except Exception as e:
+            print(f"Training error: {e}")
+            return 'NA', 'NA'
+
+    elif classifier_name == 'mahalanobis':
+        cov_matrix = np.cov(X_train, rowvar=False)
+        inv_cov_matrix = np.linalg.pinv(cov_matrix)
+        X_train_centered = X_train - np.mean(X_train, axis=0)
+        X_test_centered = X_test - np.mean(X_train, axis=0)
+        try:
+            distances = cdist(X_test_centered, X_train_centered, metric='mahalanobis', VI=inv_cov_matrix)
+            y_pred = y_train[np.argmin(distances, axis=1)]
+        except Exception as e:
+            print(f"Distance computation error: {e}")
+            return 'NA', 'NA'
+
+    else:
+        raise ValueError("Unsupported classifier. Choose from 'knn', 'linear', 'mahalanobis'.")
+
+    return accuracy_score(y_test, y_pred), time.time() - start_time
+
+# Modified pipeline function
+def pipeline(params):
+    # Load and preprocess data
+    X_train, X_test, y_train, y_test = load_and_preprocess_data(params['dataset_name'])
+
+    # Classify original data (no reduction)
+    if params['reduction_method'] == 'none':
+        original_accuracy, original_time = classify_data(params['classifier_name'], X_train, y_train, X_test, y_test)
+        original_avg_time = 'NA' if original_accuracy == 'NA' else original_time / X_test.shape[0]
+
+        # Write original data classification result to CSV
+        write_to_csv(params['csv_file'], [params['dataset_name'], 'none', 'N/A', 'N/A', X_train.shape[1], params['classifier_name'], original_accuracy, 'N/A',f"{original_avg_time:.6f}s per sample"])
+        return
+
+    # Apply dimensionality reduction
+    start_time = time.time()
+    if params['reduction_method'] == 'pca':
+        pca = PCA(n_components=params['n_components'])
+        X_train_reduced = pca.fit_transform(X_train)
+        X_test_reduced = pca.transform(X_test)
+        explained_variance = np.sum(pca.explained_variance_ratio_)
+    elif params['reduction_method'] == 'lda':
+        n_classes = len(np.unique(y_train))
+        lda_n_components = min(n_classes - 1, X_train.shape[1])
+        lda = LDA(n_components=lda_n_components)
+        X_train_reduced = lda.fit_transform(X_train, y_train)
+        X_test_reduced = lda.transform(X_test)
+        explained_variance = 'N/A'
+    elif params['reduction_method'] == 'pca+lda':
+        pca = PCA(n_components=params['n_components'])
+        X_train_pca = pca.fit_transform(X_train)
+        X_test_pca = pca.transform(X_test)
+        n_classes = len(np.unique(y_train))
+        lda_n_components = min(n_classes - 1, X_train_pca.shape[1])
+        lda = LDA(n_components=lda_n_components)
+        X_train_reduced = lda.fit_transform(X_train_pca, y_train)
+        X_test_reduced = lda.transform(X_test_pca)
+        explained_variance = np.sum(pca.explained_variance_ratio_)
+    else:
+        raise ValueError("Unsupported reduction method. Choose from 'pca', 'lda', 'pca+lda'.")
+
+    reduction_time = time.time() - start_time
+    reduction_avg_time = reduction_time / (X_train.shape[0] + X_test.shape[0])
+
+    # Classify reduced data
+    reduced_accuracy, classification_time = classify_data(params['classifier_name'], X_train_reduced, y_train, X_test_reduced, y_test)
+    classification_avg_time = 'NA' if reduced_accuracy == 'NA' else classification_time / X_test.shape[0]
+
+    # Write reduced data classification result to CSV
+    write_to_csv(params['csv_file'], [params['dataset_name'], params['reduction_method'], params['n_components'], explained_variance, X_train_reduced.shape[1], params['classifier_name'], reduced_accuracy, f"{reduction_avg_time:.6f}s per sample", f"{classification_avg_time:.6f}s per sample"])
+
+    print(f"Dataset: {params['dataset_name']}, Reduction: {params['reduction_method']}, Classifier: {params['classifier_name']}, Accuracy: {reduced_accuracy:.2f}")
+
+# Function to write results to CSV
+def write_to_csv(csv_file, row_data):
+    with open(csv_file, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(row_data)
+
+# Initialize CSV file
+def initialize_csv(csv_file='../result/results.csv'):
+    os.makedirs(os.path.dirname(csv_file), exist_ok=True)
+    with open(csv_file, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Dataset', 'Reduction Method', 'Parameters', 'Explained Variance', 'Number of Components', 'Classifier', 'Accuracy', 'Reduction Time per Sample', 'Classification Time per Sample'])
+
+# Run experiments
+initialize_csv()
+
+# General settings for datasets, reduction methods, and classifiers
+config = {
+    'mnist': {'n_components_list': [50, 0.95]},
+    'wine': {'n_components_list': [3, 0.95]},
+    'cifar10': {'n_components_list': [100, 0.95]}
 }
 
-# 数据加载模块
-def load_data(params):
-    # 加载wine数据集
-    wine = load_wine()
-    X_wine = wine.data
-    y_wine = wine.target
+reduction_methods = ['pca', 'lda', 'pca+lda']
+classifiers = ['knn', 'linear', 'mahalanobis']
 
-    # 加载mnist数据集
-    mnist = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transforms.ToTensor())
-    mnist_test = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transforms.ToTensor())
-
-    # 加载cifar-100数据集
-    transform = transforms.Compose([transforms.ToTensor()])
-    cifar100_train = torchvision.datasets.CIFAR100(root='./data', train=True, download=True, transform=transform)
-    cifar100_test = torchvision.datasets.CIFAR100(root='./data', train=False, download=True, transform=transform)
-    return (X_wine, y_wine), (mnist, mnist_test), (cifar100_train, cifar100_test)
-
-# 可视化CIFAR-100类以供选择
-def visualize_cifar100_classes(cifar100_train):
-    class_names = cifar100_train.classes
-    fig, axs = plt.subplots(10, 10, figsize=(15, 15))
-    fig.suptitle('CIFAR-100 Classes', fontsize=16)
-    for i in range(100):
-        class_idx = i
-        class_name = class_names[class_idx]
-        images = [img for img, label in cifar100_train if label == class_idx]
-        axs[i // 10, i % 10].imshow(images[0].permute(1, 2, 0))
-        axs[i // 10, i % 10].set_title(class_name, fontsize=8)
-        axs[i // 10, i % 10].axis('off')
-    plt.show()
-    selected_classes = input("请输入您选择的类的索引（用逗号分隔）: ")
-    selected_classes = [int(idx.strip()) for idx in selected_classes.split(',')]
-    return selected_classes
-
-# 数据描述模块
-def describe_data(X, y, params):
-    num_features = X.shape[1]
-    unique_classes = np.unique(y)
-    num_classes = len(unique_classes)
-    fig, axs = plt.subplots(num_classes, num_features, figsize=(num_features * 3, num_classes * 3), squeeze=False)
-    fig.suptitle('Feature Distributions per Class', fontsize=16)
-    
-    for class_idx, cls in enumerate(unique_classes):
-        class_data = X[y == cls]
-        for feature_idx in range(num_features):
-            axs[class_idx, feature_idx].hist(class_data[:, feature_idx], bins=20, color='skyblue', alpha=0.7)
-            axs[class_idx, feature_idx].set_title(f'Class {cls}, Feature {feature_idx}', fontsize=10)
-            axs[class_idx, feature_idx].set_xlabel('Value')
-            axs[class_idx, feature_idx].set_ylabel('Frequency')
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.show()
-
-    correlation_matrix = pd.DataFrame(X).corr()
-    plt.figure(figsize=(12, 10))
-    plt.imshow(correlation_matrix, cmap='coolwarm', interpolation='none')
-    plt.colorbar()
-    plt.title('Feature Correlation Matrix')
-    plt.show()
-
-    if params['oversample'] and len(np.bincount(y)) > 1 and min(np.bincount(y)) / max(np.bincount(y)) < 0.5:
-        print("数据不均衡，执行oversampling...")
-        smote = SMOTE()
-        X, y = smote.fit_resample(X, y)
-    return X, y
-
-# 数据处理模块
-def normalize_data(X):
-    return (X - np.mean(X, axis=0)) / np.std(X, axis=0)
-
-# PCA模块（使用scikit-learn实现）
-def apply_pca(X, params, dataset_name):
-    results = []
-    X = X.astype('float32')
-    for n_components in params['pca_n_components'][dataset_name]:
-        pca = PCA(n_components=n_components, output_type='numpy')
-        X_pca = pca.fit_transform(X)
-        explained_variance = np.sum(pca.explained_variance_ratio_)
-        print(f"PCA with n_components={n_components} for {dataset_name} dataset: Explained Variance = {explained_variance:.2f}")
-        results.append((X_pca, explained_variance))
-    return results
-
-# LDA模块（使用scikit-learn实现）
-def apply_lda(X_train, y_train, X_test, params):
-    n_components = params['lda_n_components'] if params['lda_n_components'] else len(np.unique(y_train)) - 1
-    X_train = X_train.astype('float32')
-    X_test = X_test.astype('float32')
-    lda = LDA(n_components=n_components, output_type='numpy')
-    X_lda_train = lda.fit_transform(X_train, y_train)
-    X_lda_test = lda.transform(X_test)
-    explained_variance = np.sum(lda.explained_variance_ratio_) if hasattr(lda, 'explained_variance_ratio_') else None
-    return X_lda_train, X_lda_test, explained_variance
-
-# 分类模块
-def classify_data(X_train, y_train, X_test, y_test, classifier_name):
-    classifiers = {
-        'KNN': KNeighborsClassifier(),
-        'Logistic Regression': LogisticRegression(),
-        'Mahalanobis': EmpiricalCovariance()
+# Generate all experiment combinations (excluding 'none' reduction)
+experiments = [
+    {
+        'dataset_name': dataset,
+        'reduction_method': reduction_method,
+        'classifier_name': classifier,
+        'n_components': n_components,
+        'csv_file': '../result/results.csv'
     }
-    clf = classifiers[classifier_name]
-    print(f"\nRunning classifier: {classifier_name}")
-    start_time = time.time()
-    tracemalloc.start()
+    for dataset, settings in config.items()
+    for reduction_method in reduction_methods
+    for classifier in classifiers
+    for n_components in settings['n_components_list']
+]
 
-    if classifier_name == 'Mahalanobis':
-        clf.fit(X_train)
-        y_pred = [np.argmin([clf.mahalanobis(x.reshape(1, -1)) for x in X_test])]
-    else:
-        clf.fit(X_train, y_train)
-        y_pred = clf.predict(X_test)
-    f1 = f1_score(y_test, y_pred, average='weighted')
-    current, peak = tracemalloc.get_traced_memory()
-    end_time = time.time()
-    tracemalloc.stop()
+# Run all experiments (including no reduction classification)
+for experiment in experiments:
+    pipeline(experiment)
 
-    result = {
-        'f1_score': f1,
-        'time_taken': end_time - start_time,
-        'memory_usage': peak / 10**6  # 转换为MB
-    }
-    print(f"{classifier_name} 分类报告:\n", classification_report(y_test, y_pred))
-    print(f"Time taken: {result['time_taken']:.2f} seconds, Peak memory usage: {result['memory_usage']:.2f} MB")
-    return result
-
-# 可视化比较降维后的分类结果
-def visualize_comparison(results, dataset_name, classifier_name):
-    methods = ['PCA', 'LDA', 'PCA + LDA', 'No Dimensionality Reduction']
-    metrics = ['f1_score', 'time_taken', 'memory_usage']
-    
-    for metric in metrics:
-        values = [results[method][metric] for method in methods]
-        plt.figure(figsize=(10, 5))
-        plt.bar(methods, values, color='skyblue')
-        plt.xlabel('Dimensionality Reduction Method')
-        plt.ylabel(metric.replace('_', ' ').title())
-        plt.title(f'{metric.replace("_", " ").title()} Comparison for {classifier_name} on {dataset_name} Dataset')
-        plt.show()
-
-# 主流程
-def main(params):
-    # 加载数据
-    (X_wine, y_wine), (mnist, mnist_test), (cifar100_train, cifar100_test) = load_data(params)
-
-    # 可视化CIFAR-100类并选择
-    selected_classes = visualize_cifar100_classes(cifar100_train)
-    selected_indices = [i for i, label in enumerate(cifar100_train.targets) if label in selected_classes]
-    X_cifar100_selected = cifar100_train.data[selected_indices].reshape(len(selected_indices), -1)
-    y_cifar100_selected = np.array([cifar100_train.targets[i] for i in selected_indices])
-
-    datasets = {
-        'wine': (X_wine, y_wine),
-        # MNIST和CIFAR-100在这里用flatten的方式来表示
-        'mnist': (mnist.data.view(-1, 28*28).numpy(), mnist.targets.numpy()),
-        'cifar100': (X_cifar100_selected, y_cifar100_selected)
-    }
-
-    classifiers = ['KNN', 'Logistic Regression', 'Mahalanobis']  # 可以选择不同的分类器
-
-    for classifier_name in classifiers:
-        for dataset_name, (X, y) in datasets.items():
-            # 描述数据
-            X, y = describe_data(X, y, params)
-            X = normalize_data(X)
-            
-            # 保存每种降维方法后的分类结果
-            results = {}
-
-            # PCA降维（无监督，使用全部数据）
-            pca_results = apply_pca(X, params, dataset_name)
-            for X_pca, explained_variance in pca_results:
-                X_train_pca, X_test_pca, y_train, y_test = train_test_split(X_pca, y, test_size=0.2, random_state=42)
-                results[f'PCA ({explained_variance:.2f} variance)'] = classify_data(X_train_pca, y_train, X_test_pca, y_test, classifier_name)
-
-            # 划分数据集
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-            # LDA分类（有监督，使用训练集训练LDA）
-            X_lda_train, X_lda_test, lda_explained_variance = apply_lda(X_train, y_train, X_test, params)
-            results['LDA'] = classify_data(X_lda_train, y_train, X_lda_test, y_test, classifier_name)
-
-            # PCA后再LDA分类
-            X_pca_train, X_pca_test = pca_results[0][0][:len(X_train)], pca_results[0][0][len(X_train):]
-            X_pca_lda_train, X_pca_lda_test, _ = apply_lda(X_pca_train, y_train, X_pca_test, params)
-            results['PCA + LDA'] = classify_data(X_pca_lda_train, y_train, X_pca_lda_test, y_test, classifier_name)
-
-            # 不进行降维，直接分类
-            results['No Dimensionality Reduction'] = classify_data(X_train, y_train, X_test, y_test, classifier_name)
-
-            # 可视化比较结果
-            visualize_comparison(results, dataset_name, classifier_name)
-
-if __name__ == "__main__":
-    main(default_params)
+# Also run classification without any reduction
+for dataset in config.keys():
+    for classifier in classifiers:
+        pipeline({
+            'dataset_name': dataset,
+            'reduction_method': 'none',
+            'classifier_name': classifier,
+            'n_components': 'N/A',
+            'csv_file': '../result/results.csv'
+        })
