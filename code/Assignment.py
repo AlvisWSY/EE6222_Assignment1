@@ -27,7 +27,7 @@ warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 path = '/media/user/volume2/students/s124md209_01/WangShengyuan/6222/Assignment1/'
 # Constants
-RESULTS_CSV_PATH = os.path.join(path, 'result/results1.csv')
+RESULTS_CSV_PATH = os.path.join(path, 'result/results.csv')
 DATA_DIR = os.path.join(path, 'data')
 
 # Cache for loaded datasets
