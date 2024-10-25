@@ -125,6 +125,8 @@ def initialize_csv(csv_file):
 def pipeline(params):
     """
     Pipeline to run the experiment with the given parameters.
+    If CNN -> Extract features, else load and preprocess data.
+    Apply dimensionality reduction -> Classify Data -> Write Results to CSV.
     """
     dataset_name = params['dataset_name']
     reduction_method = params['reduction_method']
@@ -281,6 +283,7 @@ def load_cifar10():
 def extract_cnn_features(dataset_name):
     """
     Extract features from CNN for CIFAR-10 dataset.
+    ResNet-18 model is used for feature extraction.
     """
     if dataset_name != 'cifar10':
         raise ValueError("CNN feature extraction is only implemented for CIFAR-10.")
